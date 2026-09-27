@@ -1,4 +1,3 @@
-javascript
 import {
   SUPABASE_URL,
   SUPABASE_ANON_KEY,
@@ -7,31 +6,37 @@ import {
 } from "./config.js";
 
 const { createClient } = window.supabase;
-const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const db = createClient(
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY
+);
 
 let products = [];
 let categories = [];
 let selectedCategory = "Tous";
 let searchTerm = "";
 
-const $ = (selector) => document.querySelector(selector);
+const $ = (selector) =>
+  document.querySelector(selector);
 
 function esc(value = "") {
   return String(value).replace(/[&<>"']/g, (char) => {
-    const entities = {
+    const map = {
       "&": "&amp;",
       "<": "&lt;",
       ">": "&gt;",
       '"': "&quot;",
-      "'": "&#39;"
+      "'": "&#039;"
     };
 
-    return entities[char];
+    return map[char];
   });
 }
 
 function imageUrl(path) {
-  if (!path) return "";
+  if (!path) {
+    return "";
+  }
 
   if (path.startsWith("http")) {
     return path;
@@ -39,22 +44,30 @@ function imageUrl(path) {
 
   return db.storage
     .from(STORAGE_BUCKET)
-    .getPublicUrl(path).data.publicUrl;
+    .getPublicUrl(path)
+    .data.publicUrl;
 }
 
 function productSizes(product) {
-  const order = ["S", "M", "L", "XL", "XXL"];
+  const order = [
+    "S",
+    "M",
+    "L",
+    "XL",
+    "XXL"
+  ];
 
   return (product.product_sizes || [])
     .filter((size) => size.enabled)
     .sort(
       (a, b) =>
-        order.indexOf(a.size) - order.indexOf(b.size)
+        order.indexOf(a.size) -
+        order.indexOf(b.size)
     );
 }
 
 function matches(product) {
-  const text = [
+  const haystack = [
     product.name,
     product.description,
     product.categories?.name
@@ -62,45 +75,53 @@ function matches(product) {
     .join(" ")
     .toLowerCase();
 
-  const categoryMatch =
-    selectedCategory === "Tous" ||
-    product.categories?.name === selectedCategory;
-
-  return categoryMatch && text.includes(searchTerm);
+  return (
+    (
+      selectedCategory === "Tous" ||
+      product.categories?.name === selectedCategory
+    ) &&
+    haystack.includes(searchTerm)
+  );
 }
 
-/* =========================
-   CARTE PRODUIT
-========================= */
-
 function card(product) {
-  const sizes = productSizes(product);
+  const sizes =
+    productSizes(product);
 
-  const available = sizes.filter(
-    (size) => Number(size.quantity || 0) > 0
-  ).length;
+  const available =
+    sizes.filter(
+      (size) => Number(size.quantity) > 0
+    ).length;
+
+  const mainImage =
+    product.image_path
+      ? imageUrl(product.image_path)
+      : (
+        product.gallery?.length
+          ? imageUrl(
+              product.gallery[0].image_path
+            )
+          : ""
+      );
 
   return `
     <article
       class="product-card"
       data-id="${esc(product.id)}"
     >
+
       <div class="product-image">
 
         ${
-          product.image_path
+          mainImage
             ? `
               <img
-                src="${esc(imageUrl(product.image_path))}"
+                src="${esc(mainImage)}"
                 alt="${esc(product.name)}"
                 loading="lazy"
               >
             `
-            : `
-              <div class="gallery-empty">
-                Pas d'image
-              </div>
-            `
+            : ""
         }
 
         ${
@@ -123,49 +144,54 @@ function card(product) {
 
         <div class="product-meta">
           ${
-            available > 0
-              ? `${available} taille${
-                  available > 1 ? "s" : ""
-                } disponible${
-                  available > 1 ? "s" : ""
-                }`
+            available
+              ? `${available} taille${available > 1 ? "s" : ""} disponible${available > 1 ? "s" : ""}`
               : "Rupture de stock"
           }
         </div>
 
       </div>
+
     </article>
   `;
 }
 
-/* =========================
-   GRILLE
-========================= */
-
 function renderGrid(selector, list) {
   const element = $(selector);
 
-  if (!element) return;
+  if (!element) {
+    return;
+  }
 
-  element.innerHTML = list.length
-    ? list.map(card).join("")
-    : "";
+  element.innerHTML =
+    list.length
+      ? list.map(card).join("")
+      : "";
 
   element
     .querySelectorAll(".product-card")
-    .forEach((element) => {
-      element.addEventListener("click", () => {
-        openProduct(element.dataset.id);
-      });
+    .forEach((cardElement) => {
+      cardElement.addEventListener(
+        "click",
+        () =>
+          openProduct(
+            cardElement.dataset.id
+          )
+      );
     });
 }
 
 function render() {
-  const filtered = products.filter(matches);
+  const filtered =
+    products.filter(matches);
 
-  renderGrid("#productGrid", filtered);
+  renderGrid(
+    "#productGrid",
+    filtered
+  );
 
-  const emptyState = $("#emptyState");
+  const emptyState =
+    $("#emptyState");
 
   if (emptyState) {
     emptyState.classList.toggle(
@@ -176,90 +202,103 @@ function render() {
 
   renderGrid(
     "#newGrid",
-    products.filter((product) => product.is_new)
+    products.filter(
+      (product) => product.is_new
+    )
   );
 
   renderGrid(
     "#featuredGrid",
-    products.filter((product) => product.is_featured)
+    products.filter(
+      (product) => product.is_featured
+    )
   );
 }
 
-/* =========================
-   CATEGORIES
-========================= */
-
 function renderCategories() {
-  const categoryFilters = $("#categoryFilters");
+  const categoryFilters =
+    $("#categoryFilters");
 
   if (categoryFilters) {
     const names = [
       "Tous",
-      ...categories.map((category) => category.name)
+      ...categories.map(
+        (category) => category.name
+      )
     ];
 
-    categoryFilters.innerHTML = names
-      .map(
-        (name) => `
-          <button
-            type="button"
-            class="filter-btn ${
-              name === selectedCategory ? "active" : ""
-            }"
-            data-cat="${esc(name)}"
-          >
-            ${esc(name)}
-          </button>
-        `
-      )
-      .join("");
+    categoryFilters.innerHTML =
+      names
+        .map(
+          (name) => `
+            <button
+              type="button"
+              class="filter-btn ${
+                name === selectedCategory
+                  ? "active"
+                  : ""
+              }"
+              data-cat="${esc(name)}"
+            >
+              ${esc(name)}
+            </button>
+          `
+        )
+        .join("");
 
     categoryFilters
-      .querySelectorAll("[data-cat]")
+      .querySelectorAll("button")
       .forEach((button) => {
-        button.addEventListener("click", () => {
-          selectedCategory = button.dataset.cat;
+        button.addEventListener(
+          "click",
+          () => {
+            selectedCategory =
+              button.dataset.cat;
 
-          renderCategories();
-          render();
-        });
+            renderCategories();
+            render();
+          }
+        );
       });
   }
 
-  const categoryCards = $("#categoryCards");
+  const categoryCards =
+    $("#categoryCards");
 
   if (categoryCards) {
-    categoryCards.innerHTML = categories
-      .map(
-        (category) => `
-          <a
-            class="category-card"
-            href="#products"
-            data-cat-card="${esc(category.name)}"
-          >
-            ${esc(category.name)}
-          </a>
-        `
-      )
-      .join("");
+    categoryCards.innerHTML =
+      categories
+        .map(
+          (category) => `
+            <a
+              class="category-card"
+              href="#products"
+              data-cat-card="${esc(category.name)}"
+            >
+              ${esc(category.name)}
+            </a>
+          `
+        )
+        .join("");
 
     categoryCards
-      .querySelectorAll("[data-cat-card]")
+      .querySelectorAll(
+        "[data-cat-card]"
+      )
       .forEach((button) => {
-        button.addEventListener("click", () => {
-          selectedCategory =
-            button.dataset.catCard;
+        button.addEventListener(
+          "click",
+          () => {
+            selectedCategory =
+              button.dataset.catCard;
 
-          renderCategories();
-          render();
-        });
+            renderCategories();
+            render();
+          }
+        );
       });
   }
 }
-
-/* =========================
-   CHARGEMENT SUPABASE
-========================= */
 
 async function load() {
   const [
@@ -298,14 +337,15 @@ async function load() {
   ) {
     console.error(
       categoriesResult.error ||
-        productsResult.error ||
-        imagesResult.error
+      productsResult.error ||
+      imagesResult.error
     );
 
-    const productGrid = $("#productGrid");
+    const grid =
+      $("#productGrid");
 
-    if (productGrid) {
-      productGrid.innerHTML = `
+    if (grid) {
+      grid.innerHTML = `
         <div class="loading-state">
           Impossible de charger les produits.
         </div>
@@ -315,92 +355,110 @@ async function load() {
     return;
   }
 
-  categories = categoriesResult.data || [];
+  categories =
+    categoriesResult.data || [];
 
   const imageRows =
     imagesResult.data || [];
 
-  products = (
-    productsResult.data || []
-  ).map((product) => {
-    const gallery = imageRows
-      .filter(
-        (image) =>
-          image.product_id === product.id
-      )
-      .sort(
-        (a, b) =>
-          Number(a.sort_order || 0) -
-          Number(b.sort_order || 0)
-      );
+  products =
+    (productsResult.data || [])
+      .map((product) => {
+        const gallery =
+          imageRows
+            .filter(
+              (image) =>
+                image.product_id === product.id
+            )
+            .sort(
+              (a, b) =>
+                Number(a.sort_order || 0) -
+                Number(b.sort_order || 0)
+            );
 
-    return {
-      ...product,
-      gallery
-    };
-  });
+        return {
+          ...product,
+          gallery
+        };
+      });
 
   renderCategories();
   render();
 
   document
-    .querySelector(".loading-state")
-    ?.remove();
+    .querySelectorAll(".loading-state")
+    .forEach((element) => {
+      element.remove();
+    });
 }
 
-/* =========================
-   GALERIE PRODUIT
-========================= */
-
 function openProduct(id) {
-  const product = products.find(
-    (item) => item.id === id
-  );
+  const product =
+    products.find(
+      (item) => item.id === id
+    );
 
-  if (!product) return;
+  if (!product) {
+    return;
+  }
 
-  const gallery = [];
+  const dialogContent =
+    $("#dialogContent");
 
-  /*
-    Image principale
-  */
-  if (product.image_path) {
-    gallery.push({
-      image_path: product.image_path,
-      sort_order: -1
-    });
+  const productDialog =
+    $("#productDialog");
+
+  if (!dialogContent || !productDialog) {
+    console.error(
+      "Il manque #dialogContent ou #productDialog dans index.html"
+    );
+
+    return;
   }
 
   /*
-    Images supplémentaires
-  */
-  for (const image of product.gallery || []) {
-    if (!image.image_path) continue;
+   * On construit la galerie.
+   *
+   * image_path = image principale
+   * product_images = images supplémentaires
+   */
 
-    const alreadyExists = gallery.some(
-      (item) =>
-        item.image_path === image.image_path
-    );
+  const gallery = [];
 
-    if (!alreadyExists) {
+  if (product.image_path) {
+    gallery.push({
+      image_path:
+        product.image_path
+    });
+  }
+
+  for (
+    const image of product.gallery || []
+  ) {
+    if (
+      image.image_path &&
+      !gallery.some(
+        (item) =>
+          item.image_path ===
+          image.image_path
+      )
+    ) {
       gallery.push(image);
     }
   }
 
   const firstImage =
-    gallery.length > 0
-      ? imageUrl(gallery[0].image_path)
+    gallery.length
+      ? imageUrl(
+          gallery[0].image_path
+        )
       : "";
 
-  const dialogContent =
-    $("#dialogContent");
-
-  if (!dialogContent) return;
+  const sizes =
+    productSizes(product);
 
   dialogContent.innerHTML = `
     <div class="dialog-product">
-
-      <!-- GALERIE -->
 
       <div class="product-gallery">
 
@@ -463,8 +521,6 @@ function openProduct(id) {
 
       </div>
 
-      <!-- INFORMATIONS -->
-
       <div class="dialog-copy">
 
         ${
@@ -478,9 +534,7 @@ function openProduct(id) {
         </h2>
 
         <div class="dialog-price">
-          ${Number(product.price).toLocaleString(
-            "fr-FR"
-          )} 🎾
+          ${Number(product.price).toLocaleString("fr-FR")} 🎾
         </div>
 
         <p class="dialog-desc">
@@ -490,7 +544,7 @@ function openProduct(id) {
         <div class="sizes">
 
           ${
-            productSizes(product)
+            sizes
               .map(
                 (size) => `
                   <div class="size-row">
@@ -508,15 +562,7 @@ function openProduct(id) {
                     >
                       ${
                         Number(size.quantity) > 0
-                          ? `${Number(
-                              size.quantity
-                            )} disponible${
-                              Number(
-                                size.quantity
-                              ) > 1
-                                ? "s"
-                                : ""
-                            }`
+                          ? `${Number(size.quantity)} disponible${Number(size.quantity) > 1 ? "s" : ""}`
                           : "Rupture"
                       }
                     </span>
@@ -540,43 +586,40 @@ function openProduct(id) {
     </div>
   `;
 
-  /*
-    Gestion des miniatures
-  */
-
   const mainImage =
     $("#galleryMainImage");
 
-  dialogContent
-    .querySelectorAll(".gallery-thumb")
+  document
+    .querySelectorAll(
+      ".gallery-thumb"
+    )
     .forEach((button) => {
       button.addEventListener(
         "click",
         () => {
-          const index = Number(
-            button.dataset.galleryIndex
-          );
+          const index =
+            Number(
+              button.dataset.galleryIndex
+            );
 
-          const selectedImage =
+          const selected =
             gallery[index];
 
-          if (
-            !selectedImage ||
-            !mainImage
-          ) {
+          if (!selected || !mainImage) {
             return;
           }
 
-          mainImage.src = imageUrl(
-            selectedImage.image_path
-          );
+          mainImage.src =
+            imageUrl(
+              selected.image_path
+            );
 
-          dialogContent
+          document
             .querySelectorAll(
               ".gallery-thumb"
             )
-            .forEach((thumb) => {
-              thumb.classList.remove(
+            .forEach((item) => {
+              item.classList.remove(
                 "active"
               );
             });
@@ -586,17 +629,8 @@ function openProduct(id) {
       );
     });
 
-  const productDialog =
-    $("#productDialog");
-
-  if (productDialog) {
-    productDialog.showModal();
-  }
+  productDialog.showModal();
 }
-
-/* =========================
-   FERMETURE
-========================= */
 
 const dialogClose =
   $("#dialogClose");
@@ -610,10 +644,6 @@ if (dialogClose) {
   );
 }
 
-/* =========================
-   RECHERCHE
-========================= */
-
 const searchInput =
   $("#searchInput");
 
@@ -621,9 +651,10 @@ if (searchInput) {
   searchInput.addEventListener(
     "input",
     (event) => {
-      searchTerm = event.target.value
-        .trim()
-        .toLowerCase();
+      searchTerm =
+        event.target.value
+          .trim()
+          .toLowerCase();
 
       render();
     }
@@ -638,15 +669,10 @@ if (searchTrigger) {
     "click",
     () => {
       searchInput?.focus();
-
       location.hash = "products";
     }
   );
 }
-
-/* =========================
-   MENU MOBILE
-========================= */
 
 const menuToggle =
   document.querySelector(
@@ -662,7 +688,9 @@ if (menuToggle) {
           ".main-nav"
         );
 
-      if (!nav) return;
+      if (!nav) {
+        return;
+      }
 
       nav.classList.toggle("open");
 
@@ -681,7 +709,9 @@ document
       "click",
       () => {
         document
-          .querySelector(".main-nav")
+          .querySelector(
+            ".main-nav"
+          )
           ?.classList.remove("open");
       }
     );
@@ -697,12 +727,7 @@ if (snapHandle) {
     SNAP_USERNAME;
 }
 
-/* =========================
-   REALTIME
-========================= */
-
 db.channel("shop-live")
-
   .on(
     "postgres_changes",
     {
@@ -712,7 +737,6 @@ db.channel("shop-live")
     },
     load
   )
-
   .on(
     "postgres_changes",
     {
@@ -722,7 +746,6 @@ db.channel("shop-live")
     },
     load
   )
-
   .on(
     "postgres_changes",
     {
@@ -732,7 +755,6 @@ db.channel("shop-live")
     },
     load
   )
-
   .on(
     "postgres_changes",
     {
@@ -742,12 +764,6 @@ db.channel("shop-live")
     },
     load
   )
-
   .subscribe();
 
-/* =========================
-   START
-========================= */
-
 load();
-
