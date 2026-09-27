@@ -1,4 +1,4 @@
-```javascript
+javascript
 import {
   SUPABASE_URL,
   SUPABASE_ANON_KEY,
@@ -750,4 +750,4 @@ db.channel("shop-live")
 ========================= */
 
 load();
-```
+
