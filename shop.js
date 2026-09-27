@@ -17,7 +17,7 @@ let selectedCategory = "Tous";
 let searchTerm = "";
 
 const $ = (selector) =>
-  document.querySelector(selector);
+  document.querySelecor (selector);
 
 function esc(value = "") {
   return String(value).replace(/[&<>"']/g, (char) => {
